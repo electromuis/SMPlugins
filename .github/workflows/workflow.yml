@@ -11,8 +11,8 @@ jobs:
       #   run: git submodule update --init
       - name: Build windows plugins
         run: |
-          docker run --rm -v ./:/data electromuis/smsdk plugin_build --plugin=HelloWorldPlugin --sdk=electromuis-itgmania --compiler=msvc
-          docker run --rm -v ./:/data electromuis/smsdk plugin_build --plugin=LuaDebugPlugin --sdk=electromuis-itgmania --compiler=msvc
+          docker run --rm -v ${{ github.workspace }}:/data electromuis/smsdk plugin_build --plugin=HelloWorldPlugin --sdk=electromuis-itgmania --compiler=msvc
+          docker run --rm -v ${{ github.workspace }}:/data electromuis/smsdk plugin_build --plugin=LuaDebugPlugin --sdk=electromuis-itgmania --compiler=msvc
       - uses: actions/upload-artifact@v3
         with:
           name: Plugins Windows
