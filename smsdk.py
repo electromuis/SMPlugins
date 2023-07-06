@@ -23,31 +23,46 @@ built_dir = os.path.join(current_dir, 'built')
 if not os.path.exists(built_dir):
     os.makedirs(built_dir)
 
-def download_sdk(args):
-    print("Downloading ...")
-    sdk_tmp = os.path.join(tmp_dir, 'sdk.zip')
-    if os.path.exists(sdk_tmp):
-        os.unlink(sdk_tmp)
-    
-    with open(sdk_tmp, 'wb') as f:
-        f.write(requests.get(args.url).content)
+def get_sdk(name):
+    version = 'latest'
 
-    ziphandle = zipfile.ZipFile(sdk_tmp)
-    inistr = ziphandle.open('version.ini').read()
-    buf = io.StringIO(inistr.decode('utf-8'))
-    
-    parser = configparser.ConfigParser()
-    parser.read_file(buf)
-    name = parser.get('main', 'name')
-    
-    sdk_path = os.path.join(skds_dir, name)
-    if os.path.exists(sdk_path):
-        print("SDK already exists: %s" % sdk_path)
-        return
-    
-    # unzip
-    ziphandle.extractall(sdk_path)
-    print("SDK downloaded: %s" % sdk_path)
+    pts = name.split('-')
+    if len(pts) == 3:
+        author, name, version = name.split('-')
+    if len(pts) == 2:
+        author, name = name.split('-')
+    if len(pts) == 1:
+        author = name
+        name = name
+
+    tags = requests.get('https://api.github.com/repos/{}/{}/tags'.format(author, name)).json()
+    if version == 'latest':
+        version = tags[0]['name']
+
+    sdk_path = None
+    for sdk in os.listdir(skds_dir):
+        if sdk.endswith('-sdk'):
+            sdk_author, sdk_name, sdk_version, pfix = sdk.split('-')
+            if sdk_name == name and (version == 'latest' or sdk_version == version):
+                sdk_path = os.path.join(skds_dir, sdk)
+                break
+
+    if sdk_path is None:
+        sdk_tmp = os.path.join(tmp_dir, 'sdk.zip')
+        if os.path.exists(sdk_tmp):
+            os.unlink(sdk_tmp)
+        
+        with open(sdk_tmp, 'wb') as f:
+            print('Downloading ...')
+            sdk_url = 'https://github.com/{}/{}/releases/download/{}/SDK.zip'.format(author, name, version)
+            f.write(requests.get(sdk_url).content)
+
+        print('Unpacking ...')
+        sdk_path = os.path.join(skds_dir, '{}-{}-{}-sdk'.format(author, name, version))
+        ziphandle = zipfile.ZipFile(sdk_tmp)
+        ziphandle.extractall(sdk_path)
+
+    return sdk_path
 
 def download_plugin(args):
     pts = args.url.split('/')
@@ -70,7 +85,8 @@ def plugin_build(args):
         print("Plugin not exists: %s" % plugin_path)
         return
     
-    sdk_path = os.path.join(skds_dir, args.sdk)
+    # sdk_path = os.path.join(skds_dir, args.sdk)
+    sdk_path = get_sdk(args.sdk)
     if not os.path.exists(sdk_path):
         print("SDK not exists: %s" % sdk_path)
         return
@@ -145,9 +161,7 @@ list_sdks_parser = subparsers.add_parser('sdk_list')
 list_plugins_parser = subparsers.add_parser('plugin_list')
 
 args = parser.parse_args()
-if args.command == 'sdk_download':
-    download_sdk(args)
-elif args.command == 'plugin_download':
+if args.command == 'plugin_download':
     download_plugin(args)
 elif args.command == 'plugin_build':
     plugin_build(args)
