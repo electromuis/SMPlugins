@@ -1,0 +1,20 @@
+on: [push, pull_request]
+
+name: Build
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Checkout submodules
+        run: git submodule update --init
+      - name: Build windows plugins
+        run: |
+          docker run --rm -v ./:/data electromuis/smsdk plugin_build --plugin=HelloWorldPlugin --sdk=electromuis-itgmania --compiler=msvc
+          docker run --rm -v ./:/data electromuis/smsdk plugin_build --plugin=AdpPlugin --sdk=electromuis-itgmania --compiler=msvc
+          docker run --rm -v ./:/data electromuis/smsdk plugin_build --plugin=LuaDebugPlugin --sdk=electromuis-itgmania --compiler=msvc
+      - uses: actions/upload-artifact@v3
+        with:
+          name: Plugins Windows
+          path: built
